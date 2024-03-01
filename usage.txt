@@ -1,0 +1,21 @@
+myapp <command> <option>
+
+Usage:
+
+myapp --help                Display help for using the CLI application.
+
+myapp init                  Initialize the application.
+myapp init --mk             Create all necessary folders for the application.
+myapp init --cat            Create all necessary files for the application.
+myapp init --all            Initialize the application with all folders and files.
+
+myapp config                Manage application configuration settings.
+myapp config --show         Display the current configuration settings.
+myapp config --reset        Reset the configuration settings to default.
+myapp config --set <key> <value>   Set a specific configuration attribute.
+
+myapp token                 Manage user tokens for authentication.
+myapp token --list          List all tokens stored in the system.
+myapp token --count         Provide a count of total tokens.
+myapp token --new <username>     Generate a new token for the specified user.
+
