@@ -1,224 +1,261 @@
-// Import required modules
+// Import required modules 
 const fs = require("fs").promises;
 const path = require("path");
+const express = require("express");
+const bodyParser = require("body-parser");
+const yargs = require("yargs");
+
+// Load templates
 const templates = require("./templates");
-const { program } = require("commander"); // Corrected import
+
+// Initialize Express app
+const app = express();
+const port = 3000;
+
+// Serve index.html for the root path
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Middleware for parsing form data
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// Serve static files
+app.use(express.static(path.join(__dirname)));
+
+// Handle POST request for user registration
+app.post('/submit_registration', (req, res) => {
+  const username = req.body.username;
+  const token = generateToken();
+
+  // Save token to tokens.json file
+  addToken(username, token);
+
+  // Send response with token
+  res.json({ token: token });
+});
+
+// Function to generate a random token
+function generateToken() {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const length = 10;
+    let token = '';
+    for (let i = 0; i < length; i++) {
+        token += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return token;
+}
 
 // Function to initialize the application
 async function initializeApp(options) {
-  try {
-    // Check the values of the options
-    if (options.all) {
-      await createFolderStructure();
-      await createConfigFiles();
-      console.log("Initialization successful");
-    } else if (options.mk) {
-      await createFolderStructure();
-      console.log("Folder structure creation successful");
-    } else if (options.cat) {
-      await createConfigFiles();
-      console.log("Configuration files creation successful");
-    } else {
-      displayUsage();
+    try {
+        // Check the values of the options
+        if (options.all) {
+            await createFolderStructure();
+            await createConfigFiles();
+            console.log("Initialization successful");
+        } else if (options.mk) {
+            await createFolderStructure();
+            console.log("Folder structure creation successful");
+        } else if (options.cat) {
+            await createConfigFiles();
+            console.log("Configuration files creation successful");
+        } else {
+            displayUsage();
+        }
+    } catch (error) {
+        console.error("Initialization failed:", error);
     }
-  } catch (error) {
-    console.error("Initialization failed:", error);
-  }
 }
 
 // Function to create folder structure
 async function createFolderStructure() {
-  const folders = ["json"];
-  let createdCount = 0;
-  for (const folder of folders) {
-    const folderPath = path.join(__dirname, folder);
-    try {
-      await fs.mkdir(folderPath);
-      console.log(`Folder created: ${folderPath}`);
-      createdCount++;
-    } catch (error) {
-      if (error.code === "EEXIST") {
-        console.log(`Folder already exists: ${folderPath}`);
-      } else {
-        throw error;
-      }
+    const folders = ["json"];
+    let createdCount = 0;
+    for (const folder of folders) {
+        const folderPath = path.join(__dirname, folder);
+        try {
+            await fs.mkdir(folderPath);
+            console.log(`Folder created: ${folderPath}`);
+            createdCount++;
+        } catch (error) {
+            if (error.code === "EEXIST") {
+                console.log(`Folder already exists: ${folderPath}`);
+            } else {
+                throw error;
+            }
+        }
     }
-  }
-  console.log(
-    `${createdCount === 0 ? "All" : createdCount} folders ${
-      createdCount === 0 ? "already exist" : "were created"
-    }.`
-  );
+    console.log(
+        `${createdCount === 0 ? "All" : createdCount} folders ${
+        createdCount === 0 ? "already exist" : "were created"
+        }.`
+    );
 }
 
 // Function to create configuration files
 async function createConfigFiles() {
-  try {
-    const configPath = path.join(__dirname, "json", "config.json");
-    const tokenPath = path.join(__dirname, "json", "tokens.json");
+    try {
+        const configPath = path.join(__dirname, "json", "config.json");
+        const tokenPath = path.join(__dirname, "json", "tokens.json");
 
-    await fs.writeFile(
-      configPath,
-      JSON.stringify(templates.configjson, null, 2)
-    );
-    console.log(`Config file created: ${configPath}`);
+        await fs.writeFile(
+            configPath,
+            JSON.stringify(templates.configjson, null, 2)
+        );
+        console.log(`Config file created: ${configPath}`);
 
-    await fs.writeFile(tokenPath, JSON.stringify(templates.tokenjson, null, 2));
-    console.log(`Token file created: ${tokenPath}`);
-  } catch (error) {
-    console.error("Configuration files creation failed:", error);
-  }
+        await fs.writeFile(tokenPath, JSON.stringify(templates.tokenjson, null, 2));
+        console.log(`Token file created: ${tokenPath}`);
+    } catch (error) {
+        console.error("Configuration files creation failed:", error);
+    }
+}
+
+// Function to update token entry 
+async function updateToken(field, username, value) {
+    try {
+        const tokenPath = path.join(__dirname, "json", "tokens.json");
+        let tokens = [];
+
+        try {
+            const existingTokens = await fs.readFile(tokenPath, "utf-8");
+            tokens = JSON.parse(existingTokens);
+        } catch (error) {
+            if (error.code !== "ENOENT") {
+                throw error;
+            }
+        }
+
+        const tokenToUpdateIndex = tokens.findIndex(token => token.username === username);
+
+        if (tokenToUpdateIndex !== -1) {
+            // Add quotes around the value if it's a phone number
+            const updatedValue = field === 'phone' ? `"${value}"` : value;
+
+            tokens[tokenToUpdateIndex][field] = updatedValue;
+            await fs.writeFile(tokenPath, JSON.stringify(tokens, null, 2));
+            console.log(`Updated ${field} for ${username} to ${updatedValue}`);
+        } else {
+            console.log(`Token entry not found for username: ${username}`);
+        }
+    } catch (error) {
+        console.error("Failed to update token:", error);
+    }
+}
+
+// Function to add a new token entry
+async function addToken(username, email, phone, expires, confirmed) {
+    try {
+        const tokenPath = path.join(__dirname, "json", "tokens.json");
+        let tokens = [];
+
+        try {
+            const existingTokens = await fs.readFile(tokenPath, "utf-8");
+            tokens = JSON.parse(existingTokens);
+        } catch (error) {
+            if (error.code !== "ENOENT") {
+                throw error;
+            }
+        }
+
+        const token = generateToken(); // Generate a random token
+
+        const newToken = {
+            created: new Date().toISOString(),
+            username,
+            email,
+            phone,
+            token,
+            expires,
+            confirmed
+        };
+
+        tokens.push(newToken);
+        await fs.writeFile(tokenPath, JSON.stringify(tokens, null, 2));
+        console.log(`Added new token for username: ${username}`);
+    } catch (error) {
+        console.error("Failed to add token:", error);
+    }
 }
 
 // Function to display usage information
-async function displayUsage() {
-  try {
-    const usageData = await fs.readFile(
-      path.join(__dirname, "usage.txt"),
-      "utf-8"
-    );
-    console.log(usageData);
-  } catch (error) {
-    console.error("Display usage failed:", error);
-  }
-}
-
-program
-  .command("init")
-  .option("--all", "Initialize everything")
-  .option("--mk", "Create folder structure")
-  .option("--cat", "Create configuration files")
-  .action(initializeApp);
-
-// Manage application configuration settings
-program
-  .command("config")
-  .description("Manage application configuration settings.")
-  .option("--show", "Display the current configuration settings.")
-  .option("--reset", "Reset the configuration settings to default.")
-  .option("--set <key> <value>", "Set a specific configuration attribute.")
-  .action(async (options) => {
-    const configPath = path.join(__dirname, "json", "config.json");
-    let config;
+async function displayUsage(command) {
     try {
-      config = JSON.parse(await fs.readFile(configPath, "utf-8"));
+        const usageData = await fs.readFile(path.join(__dirname, "usage.txt"), "utf-8");
+        console.log(usageData);
     } catch (error) {
-      console.error("Failed to read configuration:", error);
-      return;
+        console.error("Failed to load usage information:", error);
     }
-
-    if (options.show) {
-      console.log(config);
-    } else if (options.reset) {
-      await fs.writeFile(
-        configPath,
-        JSON.stringify(templates.configjson, null, 2)
-      );
-      console.log("Configuration reset to default.");
-    } else if (options.set) {
-      const [key, value] = options.set.split("=");
-      config[key] = value;
-      await fs.writeFile(configPath, JSON.stringify(config, null, 2));
-      console.log(`Configuration attribute ${key} set to ${value}.`);
-    } else {
-      console.log("Please provide an option for the config command.");
-    }
-  });
-
-// token options
-program
-  .command("token")
-  .description("Manage tokens.")
-  .option("--help", "Display help for the token command")
-  .option("--count", "Display a count of the tokens created")
-  .option(
-    "--new <username>",
-    "Generate a token for a given username, saves tokens to the json file"
-  )
-  .option(
-    "--upd <field> <username> <value>",
-    'Update the json entry with a new value (field can be "p" for phone or "e" for email)'
-  )
-  .option(
-    "--search <field> <value>",
-    'Fetch a token for a given value (field can be "u" for username, "e" for email, or "p" for phone)'
-  )
-  .action(async (options) => {
-    if (options.help) {
-      // Display help for the token command
-      program.help();
-    } else if (options.count) {
-      // Display a count of the tokens created
-      await displayTokenCount();
-    } else if (options.new) {
-      // Generate a token for a given username
-      await generateToken(options.new);
-    } else if (options.upd) {
-      // Update the json entry with a new value
-      const [field, username, value] = options.upd.split(" ");
-      await updateToken(field, username, value);
-    } else if (options.search) {
-      // Fetch a token for a given value
-      const [field, value] = options.search.split(" ");
-      await fetchToken(field, value);
-    } else {
-      console.log(
-        "Please provide a valid option for the token command. Use --help for assistance."
-      );
-    }
-  });
-
-// Function to display count of tokens created
-async function displayTokenCount() {
-  try {
-    const tokenPath = path.join(__dirname, "json", "tokens.json");
-    const tokens = JSON.parse(await fs.readFile(tokenPath, "utf-8"));
-    console.log(`Total tokens created: ${Object.keys(tokens).length}`);
-  } catch (error) {
-    console.error("Failed to display token count:", error);
-  }
 }
 
-// Function to generate a token for a given username
-async function generateToken(username) {
-  try {
-    const tokenPath = path.join(__dirname, "json", "tokens.json");
-    let tokens = [];
+// Parse command-line arguments using yargs
+yargs
+    .command({
+        command: 'init',
+        describe: 'Initialize the application',
+        handler: () => {
+            displayUsage('init');
+        }
+    })
+    .command({
+        command: 'config',
+        describe: 'Manage application configuration settings.',
+        handler: () => {
+            console.log("Manage application configuration settings.");
+        }
+    })
+    .command({
+        command: 'add',
+        describe: 'Add a new token entry',
+        builder: (yargs) => {
+            return yargs.option('new', {
+                describe: 'Add a new token entry (format: --new username email phone expires confirmed)',
+                type: 'array',
+                demandOption: true
+            });
+        },
+        handler: async (argv) => {
+            const { new: newToken } = argv;
+            if (newToken.length === 5) { // Adjusted for the removed token parameter
+                const [username, email, phone, expires, confirmed] = newToken;
+                await addToken(username, email, phone, expires, confirmed);
+            } else {
+                console.log(
+                    "Please provide a valid username, email, phone, expires, and confirmed for the new token."
+                );
+            }
+        }
+    })
+    .command({
+        command: 'token',
+        describe: 'Update token entry',
+        builder: (yargs) => {
+            return yargs.option('upd', {
+                describe: 'Update token entry (format: --upd field username value)',
+                type: 'array',
+                demandOption: true
+            });
+        },
+        handler: async (argv) => {
+            const { upd } = argv;
+            if (upd.length === 3) {
+                const [field, username, value] = upd;
+                await updateToken(field, username, value);
+            } else {
+                console.log(
+                    "Please provide a valid field, username, and value for the token update."
+                );
+            }
+        }
+    })
+    .demandCommand(1, 'Please provide a valid command')
+    .help()
+    .argv;
 
-    try {
-      const existingTokens = await fs.readFile(tokenPath, "utf-8");
-      tokens = JSON.parse(existingTokens);
-    } catch (error) {
-      if (error.code !== "ENOENT") {
-        throw error;
-      }
-    }
-
-    const newToken = generateNewToken();
-
-    tokens.push({ username: username, token: newToken });
-
-    await fs.writeFile(tokenPath, JSON.stringify(tokens, null, 2));
-    console.log(`Token generated for ${username} and saved to ${tokenPath}`);
-  } catch (error) {
-    console.error("Failed to generate token:", error);
-  }
-}
-
-// Placeholder function for generating a token
-function generateNewToken() {
-  return Math.random().toString(36).substr(2);
-}
-
-// Function to update token entry
-async function updateToken(field, username, value) {
-  // Update token logic goes here
-}
-
-// Function to fetch token entry
-async function fetchToken(field, value) {
-  // Fetch token logic goes here
-}
-
-// Parse command-line arguments
-program.parse(process.argv);
+// Start the server
+app.listen(port, () => {
+  console.log(`Server is running on http://localhost:${port}`);
+}).on('error', (err) => {
+  console.error(`Error starting server: ${err.message}`);
+});
