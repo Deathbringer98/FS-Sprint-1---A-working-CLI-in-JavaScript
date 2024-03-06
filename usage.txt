@@ -1,0 +1,23 @@
+Usage: node myapp.js [command]
+
+Commands:
+  init          Initialize the application
+  config        Manage application configuration settings
+  add           Add a new token entry
+  token         Update token entry
+
+Options:
+  --version     Show version number                                   
+  --help        Show help                                             
+
+Examples:
+  node myapp.js init                     Initialize the application
+  node myapp.js config                   Manage application configuration settings
+  node myapp.js add --new user1 user1@example.com 555-123-4567 "2024-12-31" true
+                                         Add a new token entry for user1
+  node myapp.js token --upd expires user1 "2026-01-01"
+                                         Update expiration date for user1's token
+
+
+
+
