@@ -25,16 +25,17 @@ app.use(express.static(path.join(__dirname)));
 
 // Handle POST request for user registration
 app.post('/submit_registration', (req, res) => {
-  const username = req.body.username;
-  const token = generateToken();
-
-  // Save token to tokens.json file
-  addToken(username, token);
-
-  // Send response with token
-  res.json({ token: token });
+    const username = req.body.username;
+    const email = req.body.email;
+    const phone = req.body.phone; // Extract phone from the request body
+    const token = generateToken();
+  
+    // Save token to tokens.json file
+    addToken(username, email, phone, token); // Pass phone to the addToken function
+  
+    // Send response with the created username, email, phone, and token
+    res.json({ created: new Date().toISOString(), username: username, email: email, phone: phone, token: token }); // Update this line to include the username, email, phone, and token
 });
-
 // Function to generate a random token
 function generateToken() {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';

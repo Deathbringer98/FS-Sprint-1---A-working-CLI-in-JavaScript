@@ -1,40 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>User Registration</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Registration Form</title>
 </head>
 <body>
-    <h1>User Registration</h1>
+    <h1>User Registration Form</h1>
     <form id="registrationForm" action="/submit_registration" method="POST">
         <label for="username">Username:</label><br>
-        <input type="text" id="username" name="username" required><br>
+        <input type="text" id="username" name="username" value=""><br><br>
+
+        <label for="email">Email:</label><br>
+        <input type="email" id="email" name="email" value=""><br><br>
+
+        <label for="phone">Phone:</label><br>
+        <input type="tel" id="phone" name="phone" value=""><br><br>
+
+        <label for="expires">Expires:</label><br>
+        <input type="date" id="expires" name="expires" value=""><br><br>
+
+        <label for="confirmed">Confirmed:</label><br>
+        <input type="checkbox" id="confirmed" name="confirmed" value="true"><br><br>
+
         <input type="submit" value="Submit">
     </form>
-    <p id="token"></p>
 
     <script>
-        document.getElementById('registrationForm').addEventListener('submit', function(event) {
-            event.preventDefault();
-            const username = document.getElementById('username').value;
+        // Fetch JSON data and populate form fields
+        fetch('data.json')
+            .then(response => response.json())
+            .then(data => {
+                const latestEntry = data[data.length - 1]; // Assuming the latest entry has the most up-to-date information
 
-            // Send AJAX request to the server
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', '/submit_registration', true);
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === XMLHttpRequest.DONE) {
-                    if (xhr.status === 200) {
-                        const response = JSON.parse(xhr.responseText);
-                        document.getElementById('token').textContent = `Token for ${username}: ${response.token}`;
-                    } else {
-                        console.error('Error:', xhr.status);
-                    }
-                }
-            };
-            xhr.send(JSON.stringify({ username: username }));
-        });
+                document.getElementById('username').value = latestEntry.username || '';
+                document.getElementById('email').value = latestEntry.email || '';
+                document.getElementById('phone').value = latestEntry.phone || '';
+                document.getElementById('expires').value = latestEntry.expires || '';
+                document.getElementById('confirmed').checked = latestEntry.confirmed === 'true';
+            })
+            .catch(error => console.error('Error fetching JSON:', error));
     </script>
 </body>
 </html>
